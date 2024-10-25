@@ -10,9 +10,14 @@ class MethodChannelLocationWakeup extends LocationWakeupPlatform {
 
   @visibleForTesting
   // ignore: public_member_api_docs
-  final EventChannel eventChannel = const EventChannel('loc_stream');
+  final EventChannel locationEventChannel = const EventChannel('loc_stream');
+  
+  @visibleForTesting
+  // ignore: public_member_api_docs
+  final EventChannel visitEventChannel = const EventChannel('loc_visit_stream');
 
   Stream<dynamic>? _locationUpdates;
+  Stream<dynamic>? _visitUpdates;
 
   @override
   Future<void> startMonitoring() => channel.invokeMethod('startMonitoring');
@@ -22,7 +27,21 @@ class MethodChannelLocationWakeup extends LocationWakeupPlatform {
 
   @override
   Stream<dynamic> get locationUpdates {
-    _locationUpdates ??= eventChannel.receiveBroadcastStream();
+    _locationUpdates ??= locationEventChannel.receiveBroadcastStream();
     return _locationUpdates!;
+  }
+
+  @override
+  Future<void> startVisitMonitoring() =>
+      channel.invokeMethod('startVisitMonitoring');
+
+  @override
+  Future<void> stopVisitMonitoring() =>
+      channel.invokeMethod('stopVisitMonitoring');
+
+  @override
+  Stream<dynamic> get visitUpdates {
+    _visitUpdates ??= visitEventChannel.receiveBroadcastStream();
+    return _visitUpdates!;
   }
 }
