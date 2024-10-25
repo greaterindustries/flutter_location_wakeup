@@ -54,29 +54,33 @@ public class LocPlugin: NSObject, FlutterPlugin, CLLocationManagerDelegate {
             ))
             return
         }
+        
+        guard !isMonitoringLocation else { return }
 
-        locationManager.delegate = self
-        locationManager.requestWhenInUseAuthorization()
+        locationManager.requestAlwaysAuthorization()
         locationManager.startMonitoringSignificantLocationChanges()
         isMonitoringLocation = true
     }
     
     private func startVisitMonitoring() {
-        locationManager.delegate = self
-        locationManager.requestWhenInUseAuthorization()
+        guard !isMonitoringVisits else { return }
+        
+        locationManager.requestAlwaysAuthorization()
         locationManager.startMonitoringVisits()
         isMonitoringVisits = true
     }
 
     private func stopMonitoring() {
+        guard isMonitoringLocation else { return }
+        
         locationManager.stopMonitoringSignificantLocationChanges()
-        locationStreamHandler.eventSink = nil
         isMonitoringLocation = false
     }
     
     private func stopVisitMonitoring() {
+        guard isMonitoringVisits else { return }
+        
         locationManager.stopMonitoringVisits()
-        visitStreamHandler.eventSink = nil
         isMonitoringVisits = false
     }
     
