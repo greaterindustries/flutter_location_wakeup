@@ -6,6 +6,7 @@ import 'package:flutter_location_wakeup/flutter_location_wakeup.dart';
 const locationPermissionDeniedErrorCode = 'LOCATION_PERMISSION_DENIED';
 
 @visibleForTesting
+// ignore: public_member_api_docs
 const significantLocationMonitoringUnavailableErrorCode =
     'SIGNIFICANT_LOCATION_MONITORING_UNAVAILABLE';
 
