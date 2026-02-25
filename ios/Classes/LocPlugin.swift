@@ -1,4 +1,4 @@
-import Flutter
+@preconcurrency import Flutter
 import UIKit
 import CoreLocation
 
@@ -7,25 +7,25 @@ public class LocPlugin: NSObject, FlutterPlugin, CLLocationManagerDelegate {
     private let visitStreamHandler = VisitStreamHandler()
     private var isMonitoringLocation = false
     private var isMonitoringVisits = false
-    
+
     private let locationManager = CLLocationManager()
-    
+
     override init() {
         super.init()
         locationManager.delegate = self
     }
-    
+
     public static func register(with registrar: FlutterPluginRegistrar) {
         let channel = FlutterMethodChannel(name: "loc", binaryMessenger: registrar.messenger())
         let locationEventChannel = FlutterEventChannel(name: "loc_stream", binaryMessenger: registrar.messenger())
         let visitEventChannel = FlutterEventChannel(name: "loc_visit_stream", binaryMessenger: registrar.messenger())
-        
+
         let instance = LocPlugin()
         registrar.addMethodCallDelegate(instance, channel: channel)
         locationEventChannel.setStreamHandler(instance.locationStreamHandler)
         visitEventChannel.setStreamHandler(instance.visitStreamHandler)
     }
-    
+
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         switch call.method {
         case "startMonitoring":
@@ -44,7 +44,7 @@ public class LocPlugin: NSObject, FlutterPlugin, CLLocationManagerDelegate {
             result(FlutterMethodNotImplemented)
         }
     }
-    
+
     private func startMonitoring() {
         guard CLLocationManager.significantLocationChangeMonitoringAvailable() else {
             locationStreamHandler.eventSink?(FlutterError(
@@ -54,17 +54,17 @@ public class LocPlugin: NSObject, FlutterPlugin, CLLocationManagerDelegate {
             ))
             return
         }
-        
+
         guard !isMonitoringLocation else { return }
 
         locationManager.requestAlwaysAuthorization()
         locationManager.startMonitoringSignificantLocationChanges()
         isMonitoringLocation = true
     }
-    
+
     private func startVisitMonitoring() {
         guard !isMonitoringVisits else { return }
-        
+
         locationManager.requestAlwaysAuthorization()
         locationManager.startMonitoringVisits()
         isMonitoringVisits = true
@@ -72,28 +72,28 @@ public class LocPlugin: NSObject, FlutterPlugin, CLLocationManagerDelegate {
 
     private func stopMonitoring() {
         guard isMonitoringLocation else { return }
-        
+
         locationManager.stopMonitoringSignificantLocationChanges()
         isMonitoringLocation = false
     }
-    
+
     private func stopVisitMonitoring() {
         guard isMonitoringVisits else { return }
-        
+
         locationManager.stopMonitoringVisits()
         isMonitoringVisits = false
     }
-    
+
     // MARK: - CLLocationManagerDelegate Methods
-    
+
     public func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard isMonitoringLocation,
               let location = locations.last,
               let eventSink = locationStreamHandler.eventSink else { return }
-        
+
         let status = CLLocationManager.authorizationStatus()
         let permissionStatus = stringFromAuthorizationStatus(status: status)
-        
+
         var locationData: [String: Any] = [
             "latitude": location.coordinate.latitude,
             "longitude": location.coordinate.longitude,
@@ -105,21 +105,21 @@ public class LocPlugin: NSObject, FlutterPlugin, CLLocationManagerDelegate {
             "timestamp": location.timestamp.timeIntervalSince1970,
             "permissionStatus": permissionStatus
         ]
-        
+
         if let floor = location.floor {
             locationData["floorLevel"] = floor.level
         }
-        
+
         eventSink(locationData)
     }
-    
+
     public func locationManager(_ manager: CLLocationManager, didVisit visit: CLVisit) {
         guard isMonitoringVisits,
               let eventSink = visitStreamHandler.eventSink else { return }
-        
+
         let status = CLLocationManager.authorizationStatus()
         let permissionStatus = stringFromAuthorizationStatus(status: status)
-        
+
         let visitData: [String: Any] = [
             "arrivalDate": visit.arrivalDate.timeIntervalSince1970,
             "departureDate": visit.departureDate.timeIntervalSince1970,
@@ -128,7 +128,7 @@ public class LocPlugin: NSObject, FlutterPlugin, CLLocationManagerDelegate {
             "horizontalAccuracy": visit.horizontalAccuracy,
             "permissionStatus": permissionStatus
         ]
-        
+
         eventSink(visitData)
     }
 
@@ -149,12 +149,12 @@ public class LocPlugin: NSObject, FlutterPlugin, CLLocationManagerDelegate {
             return "unknown"
         }
     }
-    
+
     public func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         let status = CLLocationManager.authorizationStatus()
         let permissionStatus = stringFromAuthorizationStatus(status: status)
         let errorDetails = ["permissionStatus": permissionStatus]
-        
+
         // If we can't determine the error type, send to both if they're active
         if isMonitoringLocation {
             locationStreamHandler.eventSink?(FlutterError(
@@ -171,7 +171,7 @@ public class LocPlugin: NSObject, FlutterPlugin, CLLocationManagerDelegate {
             ))
         }
     }
-    
+
     public func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
         // Notify both handlers if they're active
         if isMonitoringLocation {
@@ -180,7 +180,7 @@ public class LocPlugin: NSObject, FlutterPlugin, CLLocationManagerDelegate {
         if isMonitoringVisits {
             handleAuthorizationChange(status: status, eventSink: visitStreamHandler.eventSink)
         }
-        
+
         // If we're monitoring and status isn't determined yet, request authorization
         if (isMonitoringLocation || isMonitoringVisits) && (status == .notDetermined || status == .authorizedWhenInUse) {
             DispatchQueue.main.async {
@@ -191,7 +191,7 @@ public class LocPlugin: NSObject, FlutterPlugin, CLLocationManagerDelegate {
 
     private func handleAuthorizationChange(status: CLAuthorizationStatus, eventSink: FlutterEventSink?) {
         guard let eventSink = eventSink else { return }
-        
+
         switch status {
         case .restricted:
             eventSink(FlutterError(
@@ -222,12 +222,12 @@ public class LocPlugin: NSObject, FlutterPlugin, CLLocationManagerDelegate {
 
 class LocationStreamHandler: NSObject, FlutterStreamHandler {
     var eventSink: FlutterEventSink?
-    
+
     func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
         self.eventSink = events
         return nil
     }
-    
+
     func onCancel(withArguments arguments: Any?) -> FlutterError? {
         self.eventSink = nil
         return nil
@@ -236,12 +236,12 @@ class LocationStreamHandler: NSObject, FlutterStreamHandler {
 
 class VisitStreamHandler: NSObject, FlutterStreamHandler {
     var eventSink: FlutterEventSink?
-    
+
     func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
         self.eventSink = events
         return nil
     }
-    
+
     func onCancel(withArguments arguments: Any?) -> FlutterError? {
         self.eventSink = nil
         return nil
