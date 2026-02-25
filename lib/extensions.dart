@@ -7,6 +7,11 @@ const locationPermissionDeniedErrorCode = 'LOCATION_PERMISSION_DENIED';
 
 @visibleForTesting
 // ignore: public_member_api_docs
+const significantLocationMonitoringUnavailableErrorCode =
+    'SIGNIFICANT_LOCATION_MONITORING_UNAVAILABLE';
+
+@visibleForTesting
+// ignore: public_member_api_docs
 const unknownLocationError = 'UNKNOWN_LOCATION_ERROR';
 
 ///Extensions for strings
@@ -26,6 +31,8 @@ extension PermissionsOnStringExtension on String? {
   ///Converts a string to an error code
   ErrorCode toErrorCode() => switch (this) {
         locationPermissionDeniedErrorCode => ErrorCode.locationPermissionDenied,
+        significantLocationMonitoringUnavailableErrorCode =>
+            ErrorCode.significantLocationMonitoringUnavailable,
         unknownLocationError => ErrorCode.unknown,
         _ => ErrorCode.unknown,
       };
@@ -57,12 +64,7 @@ LocationResult toLocationResult(dynamic platformData) {
     final speed = platformData['speed'] as double?;
     final unixTimestamp = platformData['timestamp'] as double?;
 
-    final timestamp = unixTimestamp != null
-        ? DateTime.fromMillisecondsSinceEpoch(
-            unixTimestamp.toInt() * 1000,
-            isUtc: true,
-          )
-        : null;
+    final timestamp = _parseTimestamp(unixTimestamp);
 
     final floorLevel = platformData['floorLevel'] as int?;
 
@@ -84,5 +86,48 @@ LocationResult toLocationResult(dynamic platformData) {
 
   // If this happens, please record the value in platformData and open an issue
   // on the github repo
-  return LocationResult.unknownError;
+  return LocationResult.unknownError as LocationResult;
+}
+
+///Converts the platform data, possibly including the visit [VisitResult]
+// ignore: avoid_annotating_with_dynamic
+VisitResult toVisitResult(dynamic platformData) {
+  if (platformData is Map) {
+    final permissionStatusString = platformData['permissionStatus'] as String?;
+    
+    try {
+      final arrivalTimestamp = platformData['arrivalDate'] as double;
+      final departureTimestamp = platformData['departureDate'] as double;
+      
+      return Result(
+        Visit(
+          arrivalTimestamp: _parseTimestamp(arrivalTimestamp)!,
+          departureTimestamp: _parseTimestamp(departureTimestamp)!,
+          latitude: platformData['latitude'] as double,
+          longitude: platformData['longitude'] as double,
+          horizontalAccuracy: platformData['horizontalAccuracy'] as double,
+        ),
+        permissionStatus: permissionStatusString.toPermissionStatus(),
+      );
+    // ignore: avoid_catches_without_on_clauses
+    } catch (e) {
+      return Result.error(
+        Error(
+          message: 'Failed to parse visit data: $e',
+          errorCode: ErrorCode.unknown,
+        ),
+        permissionStatus: permissionStatusString.toPermissionStatus(),
+      );
+    }
+  }
+  
+  return VisitResult.unknownError();
+}
+
+DateTime? _parseTimestamp(double? timestamp) {
+  if (timestamp == null) return null;
+  return DateTime.fromMillisecondsSinceEpoch(
+    (timestamp * 1000).toInt(),
+    isUtc: true,
+  );
 }

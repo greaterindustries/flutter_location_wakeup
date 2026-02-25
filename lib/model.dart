@@ -1,84 +1,86 @@
-///The result of a location change from the device
-final class LocationResult {
-  ///Successful result
-  const LocationResult(
-    Location location, {
+/// A generic result type that can represent either a success or error state
+final class Result<T> {
+  /// Successful result
+  const Result(
+    T value, {
     required this.permissionStatus,
-  })  : _location = location,
+  })  : _value = value,
         _error = null;
 
-  ///Error from the device
-  const LocationResult.error(
+  /// Error result
+  const Result.error(
     Error error, {
     required this.permissionStatus,
   })  : _error = error,
-        _location = null;
+        _value = null;
 
-  final Location? _location;
+  final T? _value;
   final Error? _error;
 
-  ///True if the result is a success
-  bool get isSuccess => _location != null;
+  /// True if the result represents a success
+  bool get isSuccess => _value != null;
 
-  ///True if the result is an error
+  /// True if the result represents an error
   bool get isError => _error != null;
 
-  ///The permission status of the location permission if the device
-  ///sent it
+  /// The permission status from the device
   final PermissionStatus permissionStatus;
 
-  ///Represents an unknown location result with an error
-  static const unknownError = LocationResult.error(
-    Error.unknown,
-    permissionStatus: PermissionStatus.notSpecified,
-  );
+  /// Creates an unknown error result
+  static Result<T> unknownError<T>() => Result<T>.error(
+        Error.unknown,
+        permissionStatus: PermissionStatus.notSpecified,
+      );
 
-  ///Allows you to access the location if it is successful or
-  ///the error if it is not
-  T match<T>({
-    required T Function(Location location) onSuccess,
-    required T Function(Error error) onError,
+  /// Pattern match on the result
+  R match<R>({
+    required R Function(T value) onSuccess,
+    required R Function(Error error) onError,
   }) =>
-      isSuccess ? onSuccess(_location!) : onError(_error!);
+      isSuccess ? onSuccess(_value as T) : onError(_error!);
 
-  ///Allows you to access the location if it is successful or
-  ///to replace the location with a different value based on an error
-  Location locationOr(Location Function(Error error) onError) =>
-      isSuccess ? _location! : onError(_error!);
+  /// Get the value or map the error to a value
+  T valueOr(T Function(Error error) onError) =>
+      isSuccess ? _value! : onError(_error!);
 
-  ///Allows you to access the error if it is an error or a None error
+  /// Get the error or an empty error
   Error errorOrEmpty() => isError ? _error! : Error.empty;
 
-  /// Returns the location if it's successful, or an empty location if it's an
-  /// error.
-  Location get locationOrEmpty => _location ?? Location.empty;
+  /// Get the value or a default empty value
+  T valueOrEmpty(T empty) => _value ?? empty;
 
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
 
-    if (other is LocationResult) {
-      return (other._location == _location ||
-              (other._location != null && other._location == _location)) &&
-          other.permissionStatus == permissionStatus &&
-          (other._error == _error ||
-              (other._error != null && other._error == _error));
-    }
-
-    return false;
+    return other is Result<T> &&
+        other._value == _value &&
+        other._error == _error &&
+        other.permissionStatus == permissionStatus;
   }
 
   @override
-  int get hashCode => _location.hashCode ^ _error.hashCode;
+  int get hashCode =>
+      _value.hashCode ^ _error.hashCode ^ permissionStatus.hashCode;
 
   @override
-  String toString() => 'LocationResult(_location: $_location, _error: $_error)';
+  String toString() =>
+      'Result(_value: $_value, _error: $_error, '
+      'permissionStatus: $permissionStatus)';
 }
+
+/// A result type for location data
+typedef LocationResult = Result<Location>;
+/// A result type for visit data
+typedef VisitResult = Result<Visit>;
 
 ///Represents the type of error that occurred at the device level
 enum ErrorCode {
   ///The app doesn't have permission to access location
   locationPermissionDenied,
+
+  ///The device does not have the ability to use significant location monitoring
+  significantLocationMonitoringUnavailable,
 
   ///No known information from the device about what went wrong
   unknown,
@@ -250,4 +252,62 @@ final class Location {
 
   @override
   String toString() => 'Location(latitude: $latitude, longitude: $longitude)';
+}
+
+/// Represents a visit to a location as detected by the device
+final class Visit {
+
+  /// Creates a visit
+  const Visit({
+    required this.arrivalTimestamp,
+    required this.departureTimestamp,
+    required this.latitude,
+    required this.longitude,
+    required this.horizontalAccuracy,
+  });
+
+  /// The date and time at which the device arrived at the location
+  final DateTime arrivalTimestamp;
+  /// The date and time at which the device departed from the location
+  final DateTime departureTimestamp;
+  /// The latitude of the location
+  final double latitude;
+  /// The longitude of the location
+  final double longitude;
+  /// The accuracy of the horizontal coordinate in meters. 
+  final double horizontalAccuracy;
+
+  /// Represents an empty or undefined visit
+  static final empty = Visit(
+    arrivalTimestamp: DateTime.fromMillisecondsSinceEpoch(0),
+    departureTimestamp: DateTime.fromMillisecondsSinceEpoch(0),
+    latitude: double.nan,
+    longitude: double.nan,
+    horizontalAccuracy: double.nan,
+  );
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+
+    return other is Visit &&
+        other.arrivalTimestamp == arrivalTimestamp &&
+        other.departureTimestamp == departureTimestamp &&
+        other.latitude == latitude &&
+        other.longitude == longitude &&
+        other.horizontalAccuracy == horizontalAccuracy;
+  }
+
+  @override
+  int get hashCode => arrivalTimestamp.hashCode ^
+        departureTimestamp.hashCode ^
+        latitude.hashCode ^
+        longitude.hashCode ^
+        horizontalAccuracy.hashCode;
+
+  @override
+  String toString() =>
+      'Visit(arrivalDate: $arrivalTimestamp, '
+      'departureDate: $departureTimestamp, '
+      'latitude: $latitude, longitude: $longitude)';
 }
